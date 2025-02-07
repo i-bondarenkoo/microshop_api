@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from database import engine, Base
 import models
 from routers.views_customer import router as customer_router
+from routers.views_product import router as product_router
 
 
 @asynccontextmanager
@@ -16,6 +17,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 app.include_router(customer_router)
+app.include_router(product_router)
 
 
 @app.get("/")

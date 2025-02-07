@@ -9,6 +9,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from database import get_session_to_db
 from models.models_customer import CustomerOrm
 from sqlalchemy import select
+from models.models_product import ProductOrm
+from schemas.schemas_product import (
+    CreateProductSchema,
+    ResponseProductSchema,
+    UpdateProductPartialSchema,
+)
 
 
 async def create_customer_crud(
@@ -84,3 +90,61 @@ async def update_full_info_customer_crud(
     await session.refresh(get_customer)
     # за счет responce model преобразуем orm object в pydantic object
     return get_customer
+
+
+# ----------------------------------------------------------------
+# crud product
+async def create_product_crud(
+    product: CreateProductSchema,
+    session: AsyncSession = Depends(get_session_to_db),
+    responce_model=ResponseProductSchema,
+):
+    new_product = ProductOrm(**product.model_dump())
+    session.add(new_product)
+    await session.commit()
+    await session.refresh(new_product)
+
+    return new_product
+
+
+async def get_all_products_crud(
+    session: AsyncSession = Depends(get_session_to_db),
+    model_response=ResponseProductSchema,
+):
+    stmt = select(ProductOrm).order_by(ProductOrm.id)
+    result = await session.execute(stmt)
+    all_products = result.scalars().all()
+    return all_products
+
+
+async def get_product_by_id_crud(
+    product_id: int,
+    session: AsyncSession = Depends(get_session_to_db),
+    responce_model=ResponseProductSchema,
+):
+    stmt = select(ProductOrm).where(ProductOrm.id == product_id)
+    result = await session.execute(stmt)
+    product_by_id = result.scalars().first()
+    if not product_by_id:
+        raise HTTPException(status_code=404, detail="Товар не найден")
+    return product_by_id
+
+
+async def update_product_partial_info_crud(
+    product: UpdateProductPartialSchema,
+    product_id: int,
+    session: AsyncSession = Depends(get_session_to_db),
+    response_model=ResponseProductSchema,
+):
+    get_product = await session.get(ProductOrm, product_id)
+    if get_product:
+        for key, value in product.model_dump(
+            exclude_unset=True, exclude_none=True
+        ).items():
+            setattr(get_product, key, value)
+
+        await session.commit()
+        await session.refresh(get_product)
+
+        return get_product
+    raise HTTPException(status_code=404, detail="Товар не найден")

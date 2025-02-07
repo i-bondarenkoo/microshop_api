@@ -13,7 +13,7 @@ class ResponseProductSchema(CreateProductSchema):
     id: int
 
 
-class UpdateProductSchema(CreateProductSchema):
+class UpdateProductPartialSchema(BaseModel):
 
     name: str | None = None
     description: str | None = None

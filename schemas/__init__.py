@@ -5,7 +5,7 @@ __all__ = (
     "UpdateFullCustomerSchema",
     "CreateOrderSchema",
     "CreateProductSchema",
-    "UpdateProductSchema",
+    "UpdateProductPartialSchema",
     "ResponseProductSchema",
     "ResponseOrderSchema",
     "UpdateOrderSchema",
@@ -21,6 +21,6 @@ from .schemas_customer import (
 from .schemas_order import CreateOrderSchema, ResponseOrderSchema, UpdateOrderSchema
 from .schemas_product import (
     CreateProductSchema,
-    UpdateProductSchema,
+    UpdateProductPartialSchema,
     ResponseProductSchema,
 )
