@@ -69,11 +69,18 @@ async def update_full_info_customer_crud(
     session: AsyncSession = Depends(get_session_to_db),
     response_model=ResponseCustomerSchema,
 ):
+    # orm object get_customer
     get_customer = await session.get(CustomerOrm, customer_id)
-    if get_customer:
-        for key, value in customer.model_dump().items():
-            setattr(get_customer, key, value)
-        await session.commit()
-        await session.refresh(get_customer)
-        return get_customer
-    raise HTTPException(status_code=404, detail="Пользователь не найден")
+    if not get_customer:
+        raise HTTPException(status_code=404, detail="Пользователь не найден")
+    # customer - pydantic object
+    # customer.model_dump() Pydantic -> dict
+    for key, value in customer.model_dump(exclude_unset=True).items():
+        # обновляем orm object данными из pydantic object преобразованными в dict
+        setattr(get_customer, key, value)
+
+    await session.commit()
+    # все еще orm object в БД
+    await session.refresh(get_customer)
+    # за счет responce model преобразуем orm object в pydantic object
+    return get_customer
