@@ -9,7 +9,7 @@ class CreateProductSchema(BaseModel):
     quantity: int
 
 
-class ResponceProductSchema(CreateProductSchema):
+class ResponseProductSchema(CreateProductSchema):
     id: int
 
 

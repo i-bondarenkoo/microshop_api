@@ -1,17 +1,20 @@
-from sqlalchemy.orm import Mapped, mapped_column
+from __future__ import annotations
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy import String, Float, Integer
 from database import Base
+from .associations import order_product
 
 
 class ProductOrm(Base):
     __tablename__ = "products"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(String(100), nullable=False)  # название товара
-    description: Mapped[str] = mapped_column(
-        String(255), nullable=True
-    )  # описание товара
-    price: Mapped[float] = mapped_column(Float, nullable=False)  # цена товара
-    stock_quantity: Mapped[int] = mapped_column(
-        Integer, nullable=False
-    )  # количество товара на складе
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    description: Mapped[str] = mapped_column(String(255), nullable=True)
+    price: Mapped[float] = mapped_column(Float, nullable=False)
+    stock_quantity: Mapped[int] = mapped_column(Integer, nullable=False)
+
+    # Используем строки в relationship, чтобы избежать циклического импорта
+    orders: Mapped[list["OrderOrm"]] = relationship(
+        "OrderOrm", secondary=order_product, back_populates="products"
+    )

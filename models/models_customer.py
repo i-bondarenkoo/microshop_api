@@ -1,9 +1,9 @@
-from database import Base
-from sqlalchemy.orm import Mapped, mapped_column
+from __future__ import annotations
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy import String
+from database import Base
 
 
-# добавляем таблицу клиентов
 class CustomerOrm(Base):
     __tablename__ = "customers"
 
@@ -11,4 +11,8 @@ class CustomerOrm(Base):
     first_name: Mapped[str] = mapped_column(String(30))
     last_name: Mapped[str] = mapped_column(String(30))
     email: Mapped[str] = mapped_column(String(50), unique=True)
-    phone_number: Mapped[str] = mapped_column(String(15), nullable=True)
+    phone_number: Mapped[int] = mapped_column(String(15), nullable=True)
+
+    orders: Mapped[list["OrderOrm"]] = relationship(
+        "OrderOrm", back_populates="customer"
+    )
