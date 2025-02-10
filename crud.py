@@ -1,115 +1,92 @@
 from fastapi import Depends, HTTPException
-from schemas.schemas_customer import (
+
+from typing import Sequence
+
+from schemas.customer import (
     CreateCustomerSchema,
-    ResponseCustomerSchema,
-    UpdateFullCustomerSchema,
-    UpdatePartialCustomerSchema,
+    UpdateCustomerSchema,
+    CustomerSchema,
 )
-from schemas.schemas_order import (
+from schemas.order import (
     CreateOrderSchema,
     ResponseOrderSchema,
     UpdateOrderSchema,
 )
 from sqlalchemy.ext.asyncio import AsyncSession
-from database import get_session_to_db
-from models.models_customer import CustomerOrm
+from database import get_db_session
+from models.customer import Customer
 from sqlalchemy import select
-from models.models_order import OrderOrm
-from models.models_product import ProductOrm
-from schemas.schemas_product import (
+from models.order import Order
+from models.product import Product
+from schemas.product import (
     CreateProductSchema,
     ResponseProductSchema,
     UpdateProductPartialSchema,
 )
 
 
-async def create_customer_crud(
-    customer: CreateCustomerSchema,
-    session: AsyncSession = Depends(get_session_to_db),
-    responce_model=ResponseCustomerSchema,
-):
-    new_customer = CustomerOrm(**customer.model_dump())
-    session.add(new_customer)
+async def create_customer(
+    customer_schema: CreateCustomerSchema,
+    session: AsyncSession,
+) -> Customer:
+    customer = Customer.from_schema(customer_schema)
+    session.add(customer)
     await session.commit()
-    await session.refresh(new_customer)
-    return new_customer
+    await session.refresh(customer)
+    return customer
 
 
-async def get_all_customers_crud(
-    session: AsyncSession = Depends(get_session_to_db),
-    responce_model=ResponseCustomerSchema,
-):
-    stmt = select(CustomerOrm).order_by(CustomerOrm.id)
+async def get_customers(
+    session: AsyncSession,
+    limit: int,
+    offset: int,
+    customer_id: int | None = None,
+) -> Sequence[Customer]:
+    stmt = select(
+        Customer,
+    ).order_by(
+        Customer.id,
+    ).limit(
+        limit,
+    ).offset(
+        offset,
+    )
+    if customer_id is not None:
+        stmt = stmt.where(Customer.id == customer_id)
+
     result = await session.execute(stmt)
-    all_customers = result.scalars().all()
-    return all_customers
+    customers = result.scalars().all()
+    return customers
 
 
-async def get_customer_by_id_crud(
+async def update_customer(
+    session: AsyncSession,
     customer_id: int,
-    session: AsyncSession = Depends(get_session_to_db),
-    responce_model=ResponseCustomerSchema,
-):
-    stmt = select(CustomerOrm).where(CustomerOrm.id == customer_id)
-    result = await session.execute(stmt)
-    customer_by_id = result.scalars().one_or_none()
-    if not customer_by_id:
-        raise HTTPException(status_code=404, detail="Пользователь не найден")
-    return customer_by_id
+    customer_schema: UpdateCustomerSchema,
+    clear_fields: bool,
+) -> Customer | None:
+    customer = await session.get(Customer, customer_id)
+    if not customer:
+        return None
 
-
-async def update_partial_info_customer_crud(
-    customer: UpdatePartialCustomerSchema,
-    customer_id: int,
-    session: AsyncSession = Depends(get_session_to_db),
-    response_model=ResponseCustomerSchema,
-):
-    get_customer = await session.get(CustomerOrm, customer_id)
-    if not get_customer:
-        raise HTTPException(status_code=404, detail="Пользователь не найден")
-
-    # Обновляем только переданные поля
-    update_data = customer.model_dump(exclude_unset=True, exclude_none=True)
-
-    for key, value in update_data.items():
-        setattr(get_customer, key, value)
+    customer.update_by_schema(
+        schema=customer_schema,
+        filter_empty=not clear_fields,
+    )
 
     await session.commit()
-    await session.refresh(get_customer)
-    return get_customer
-
-
-async def update_full_info_customer_crud(
-    customer: UpdateFullCustomerSchema,
-    customer_id: int,
-    session: AsyncSession = Depends(get_session_to_db),
-    response_model=ResponseCustomerSchema,
-):
-    # orm object get_customer
-    get_customer = await session.get(CustomerOrm, customer_id)
-    if not get_customer:
-        raise HTTPException(status_code=404, detail="Пользователь не найден")
-    # customer - pydantic object
-    # customer.model_dump() Pydantic -> dict
-    for key, value in customer.model_dump(exclude_unset=True).items():
-        # обновляем orm object данными из pydantic object преобразованными в dict
-        setattr(get_customer, key, value)
-
-    await session.commit()
-    # все еще orm object в БД
-    await session.refresh(get_customer)
-    # за счет responce model преобразуем orm object в pydantic object
-    return get_customer
+    await session.refresh(customer)
+    return customer
 
 
 # ----------------------------------------------------------------
 # crud product
 async def create_product_crud(
     product: CreateProductSchema,
-    session: AsyncSession = Depends(get_session_to_db),
+    session: AsyncSession = Depends(get_db_session),
     responce_model=ResponseProductSchema,
 ):
-    new_product = ProductOrm(**product.model_dump())
+    new_product = Product(**product.model_dump())
     session.add(new_product)
     await session.commit()
     await session.refresh(new_product)
@@ -118,10 +95,10 @@ async def create_product_crud(
 
 
 async def get_all_products_crud(
-    session: AsyncSession = Depends(get_session_to_db),
+    session: AsyncSession = Depends(get_db_session),
     model_response=ResponseProductSchema,
 ):
-    stmt = select(ProductOrm).order_by(ProductOrm.id)
+    stmt = select(Product).order_by(Product.id)
     result = await session.execute(stmt)
     all_products = result.scalars().all()
     return all_products
@@ -129,10 +106,10 @@ async def get_all_products_crud(
 
 async def get_product_by_id_crud(
     product_id: int,
-    session: AsyncSession = Depends(get_session_to_db),
+    session: AsyncSession = Depends(get_db_session),
     responce_model=ResponseProductSchema,
 ):
-    stmt = select(ProductOrm).where(ProductOrm.id == product_id)
+    stmt = select(Product).where(Product.id == product_id)
     result = await session.execute(stmt)
     product_by_id = result.scalars().first()
     if not product_by_id:
@@ -143,10 +120,10 @@ async def get_product_by_id_crud(
 async def update_product_partial_info_crud(
     product: UpdateProductPartialSchema,
     product_id: int,
-    session: AsyncSession = Depends(get_session_to_db),
+    session: AsyncSession = Depends(get_db_session),
     response_model=ResponseProductSchema,
 ):
-    get_product = await session.get(ProductOrm, product_id)
+    get_product = await session.get(Product, product_id)
     if get_product:
         # exclude_unset передает только заполненные поля
         for key, value in product.model_dump(exclude_unset=True).items():
@@ -161,10 +138,10 @@ async def update_product_partial_info_crud(
 
 async def create_order_crud(
     order: CreateOrderSchema,
-    session: AsyncSession = Depends(get_session_to_db),
+    session: AsyncSession = Depends(get_db_session),
     responce_model=ResponseOrderSchema,
 ):
-    new_order = OrderOrm(**order.model_dump())
+    new_order = Order(**order.model_dump())
     session.add(new_order)
     await session.commit()
     await session.refresh(new_order)
@@ -173,10 +150,10 @@ async def create_order_crud(
 
 
 async def get_all_orders_crud(
-    session: AsyncSession = Depends(get_session_to_db),
+    session: AsyncSession = Depends(get_db_session),
     responce_model=ResponseOrderSchema,
 ):
-    stmt = select(OrderOrm).order_by(OrderOrm.id)
+    stmt = select(Order).order_by(Order.id)
     result = await session.execute(stmt)
     all_orders = result.scalars().all()
     return all_orders
@@ -184,10 +161,10 @@ async def get_all_orders_crud(
 
 async def get_order_by_id_crud(
     order_id: int,
-    session: AsyncSession = Depends(get_session_to_db),
+    session: AsyncSession = Depends(get_db_session),
     responce_model=ResponseOrderSchema,
 ):
-    stmt = select(OrderOrm).where(OrderOrm.id == order_id)
+    stmt = select(Order).where(Order.id == order_id)
     result = await session.execute(stmt)
     order_by_id = result.scalars().one_or_none()
     if not order_by_id:
@@ -196,10 +173,10 @@ async def get_order_by_id_crud(
 
 
 async def delete_order_crud(
-    order_id: int, session: AsyncSession = Depends(get_session_to_db)
+    order_id: int, session: AsyncSession = Depends(get_db_session)
 ):
     # Находим заказ по ID
-    stmt = select(OrderOrm).where(OrderOrm.id == order_id)
+    stmt = select(Order).where(Order.id == order_id)
     result = await session.execute(stmt)
     order = result.scalar_one_or_none()
 
