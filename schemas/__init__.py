@@ -11,15 +11,14 @@ __all__ = (
     "UpdateOrderSchema",
 )
 
-from .schemas_customer import (
+from .customer import (
     CreateCustomerSchema,
-    ResponseCustomerSchema,
-    UpdatePartialCustomerSchema,
-    UpdateFullCustomerSchema,
+    UpdateCustomerSchema,
+    CustomerSchema,
 )
 
-from .schemas_order import CreateOrderSchema, ResponseOrderSchema, UpdateOrderSchema
-from .schemas_product import (
+from .order import CreateOrderSchema, ResponseOrderSchema, UpdateOrderSchema
+from .product import (
     CreateProductSchema,
     UpdateProductPartialSchema,
     ResponseProductSchema,

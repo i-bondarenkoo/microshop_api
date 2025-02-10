@@ -15,6 +15,6 @@ AsyncSession = async_sessionmaker(bind=engine)
 
 
 # Генератор дял сессии
-async def get_session_to_db():
+async def get_db_session():
     async with AsyncSession() as session:
         yield session

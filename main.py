@@ -3,9 +3,9 @@ import uvicorn
 from contextlib import asynccontextmanager
 from database import engine, Base
 import models
-from routers.views_customer import router as customer_router
-from routers.views_product import router as product_router
-from routers.views_order import router as order_router
+from routers.customer import router as customer_router
+from routers.product import router as product_router
+from routers.order import router as order_router
 
 
 @asynccontextmanager

@@ -1,12 +1,20 @@
 from __future__ import annotations
+
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy import String, Integer, Float, ForeignKey, Date
+from sqlalchemy import String, Integer, Float, ForeignKey
 from database import Base
-from .associations import order_product
+
+from models.associations import order_product
+
 from datetime import datetime
 
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from models.customer import Customer
+    from models.product import Product
 
-class OrderOrm(Base):
+
+class Order(Base):
     __tablename__ = "orders"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -21,9 +29,9 @@ class OrderOrm(Base):
     payment_method: Mapped[str] = mapped_column(String(20), nullable=False)
 
     # Отложенные аннотации, чтобы избежать циклического импорта
-    customer: Mapped["CustomerOrm"] = relationship(
-        "CustomerOrm", back_populates="orders"
+    customer: Mapped["Customer"] = relationship(
+        "Customer", back_populates="orders"
     )
-    products: Mapped[list["ProductOrm"]] = relationship(
-        "ProductOrm", secondary=order_product, back_populates="orders"
+    products: Mapped[list["Product"]] = relationship(
+        "Product", secondary=order_product, back_populates="orders"
     )

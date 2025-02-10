@@ -1,11 +1,16 @@
 from __future__ import annotations
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy import String, Float, Integer
+from sqlalchemy import String
 from database import Base
-from .associations import order_product
+
+from models.associations import order_product
+
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from models.order import Order
 
 
-class ProductOrm(Base):
+class Product(Base):
     __tablename__ = "products"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -15,6 +20,6 @@ class ProductOrm(Base):
     quantity: Mapped[int]
 
     # Используем строки в relationship, чтобы избежать циклического импорта
-    orders: Mapped[list["OrderOrm"]] = relationship(
-        "OrderOrm", secondary=order_product, back_populates="products"
+    orders: Mapped[list["Order"]] = relationship(
+        "Order", secondary=order_product, back_populates="products"
     )
