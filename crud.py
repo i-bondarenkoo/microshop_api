@@ -5,10 +5,16 @@ from schemas.schemas_customer import (
     UpdateFullCustomerSchema,
     UpdatePartialCustomerSchema,
 )
+from schemas.schemas_order import (
+    CreateOrderSchema,
+    ResponseOrderSchema,
+    UpdateOrderSchema,
+)
 from sqlalchemy.ext.asyncio import AsyncSession
 from database import get_session_to_db
 from models.models_customer import CustomerOrm
 from sqlalchemy import select
+from models.models_order import OrderOrm
 from models.models_product import ProductOrm
 from schemas.schemas_product import (
     CreateProductSchema,
@@ -59,14 +65,18 @@ async def update_partial_info_customer_crud(
     response_model=ResponseCustomerSchema,
 ):
     get_customer = await session.get(CustomerOrm, customer_id)
-    if get_customer:
-        # Обновляем только переданные поля
-        for key, value in customer.model_dump(exclude_unset=True).items():
-            setattr(get_customer, key, value)
-        await session.commit()
-        await session.refresh(get_customer)
-        return get_customer
-    raise HTTPException(status_code=404, detail="Пользователь не найден")
+    if not get_customer:
+        raise HTTPException(status_code=404, detail="Пользователь не найден")
+
+    # Обновляем только переданные поля
+    update_data = customer.model_dump(exclude_unset=True, exclude_none=True)
+
+    for key, value in update_data.items():
+        setattr(get_customer, key, value)
+
+    await session.commit()
+    await session.refresh(get_customer)
+    return get_customer
 
 
 async def update_full_info_customer_crud(
@@ -138,9 +148,8 @@ async def update_product_partial_info_crud(
 ):
     get_product = await session.get(ProductOrm, product_id)
     if get_product:
-        for key, value in product.model_dump(
-            exclude_unset=True, exclude_none=True
-        ).items():
+        # exclude_unset передает только заполненные поля
+        for key, value in product.model_dump(exclude_unset=True).items():
             setattr(get_product, key, value)
 
         await session.commit()
@@ -148,3 +157,58 @@ async def update_product_partial_info_crud(
 
         return get_product
     raise HTTPException(status_code=404, detail="Товар не найден")
+
+
+async def create_order_crud(
+    order: CreateOrderSchema,
+    session: AsyncSession = Depends(get_session_to_db),
+    responce_model=ResponseOrderSchema,
+):
+    new_order = OrderOrm(**order.model_dump())
+    session.add(new_order)
+    await session.commit()
+    await session.refresh(new_order)
+
+    return new_order
+
+
+async def get_all_orders_crud(
+    session: AsyncSession = Depends(get_session_to_db),
+    responce_model=ResponseOrderSchema,
+):
+    stmt = select(OrderOrm).order_by(OrderOrm.id)
+    result = await session.execute(stmt)
+    all_orders = result.scalars().all()
+    return all_orders
+
+
+async def get_order_by_id_crud(
+    order_id: int,
+    session: AsyncSession = Depends(get_session_to_db),
+    responce_model=ResponseOrderSchema,
+):
+    stmt = select(OrderOrm).where(OrderOrm.id == order_id)
+    result = await session.execute(stmt)
+    order_by_id = result.scalars().one_or_none()
+    if not order_by_id:
+        raise HTTPException(status_code=404, detail="Заказ не найден")
+    return order_by_id
+
+
+async def delete_order_crud(
+    order_id: int, session: AsyncSession = Depends(get_session_to_db)
+):
+    # Находим заказ по ID
+    stmt = select(OrderOrm).where(OrderOrm.id == order_id)
+    result = await session.execute(stmt)
+    order = result.scalar_one_or_none()
+
+    # Если не найден — возвращаем 404
+    if not order:
+        raise HTTPException(status_code=404, detail="Заказ не найден")
+
+    # Удаляем заказ
+    await session.delete(order)
+    await session.commit()
+
+    return {"message": "Заказ успешно удален"}

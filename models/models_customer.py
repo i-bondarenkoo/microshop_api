@@ -11,7 +11,7 @@ class CustomerOrm(Base):
     first_name: Mapped[str] = mapped_column(String(30))
     last_name: Mapped[str] = mapped_column(String(30))
     email: Mapped[str] = mapped_column(String(50), unique=True)
-    phone_number: Mapped[int] = mapped_column(String(15), nullable=True)
+    phone_number: Mapped[str] = mapped_column(String(15), nullable=True)
 
     orders: Mapped[list["OrderOrm"]] = relationship(
         "OrderOrm", back_populates="customer"

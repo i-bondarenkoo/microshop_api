@@ -12,16 +12,17 @@ class PaymentMethod(str, Enum):
 class CreateOrderSchema(BaseModel):
     customer_id: int
     created_at: datetime = datetime.utcnow()
-    total_amount: int
+    total_price: int
     payment_method: PaymentMethod
 
 
 class ResponseOrderSchema(CreateOrderSchema):
     id: int
+    payment_method: PaymentMethod
 
 
 class UpdateOrderSchema(CreateOrderSchema):
 
-    customer_id: int | None = None
+    customer_id: int | None
     created_at: datetime = datetime.utcnow()
-    total_amount: int | None = None
+    total_amount: int | None

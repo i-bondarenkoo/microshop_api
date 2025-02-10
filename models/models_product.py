@@ -9,10 +9,10 @@ class ProductOrm(Base):
     __tablename__ = "products"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(String(100), nullable=True)
-    description: Mapped[str] = mapped_column(String(255), nullable=True)
-    price: Mapped[float] = mapped_column(Float, nullable=True)
-    quantity: Mapped[int] = mapped_column(Integer, nullable=True)
+    name: Mapped[str] = mapped_column(String(100))
+    description: Mapped[str] = mapped_column(String(255))
+    price: Mapped[float]
+    quantity: Mapped[int]
 
     # Используем строки в relationship, чтобы избежать циклического импорта
     orders: Mapped[list["OrderOrm"]] = relationship(

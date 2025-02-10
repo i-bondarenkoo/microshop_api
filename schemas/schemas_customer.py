@@ -14,11 +14,11 @@ class ResponseCustomerSchema(CreateCustomerSchema):
     id: int
 
 
-class UpdatePartialCustomerSchema(CreateCustomerSchema):
-    first_name: str | None = None
-    last_name: str | None = None
-    email: EmailStr | None = None
-    phone_number: int | None = None
+class UpdatePartialCustomerSchema(BaseModel):
+    first_name: str | None
+    last_name: str | None
+    email: EmailStr | None
+    phone_number: int | None
 
 
 class UpdateFullCustomerSchema(BaseModel):
