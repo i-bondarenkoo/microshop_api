@@ -23,6 +23,8 @@ from schemas.schemas_product import (
     UpdateProductPartialSchema,
 )
 from models.associations import order_product
+from sqlalchemy import func
+from datetime import datetime
 
 
 async def create_customer_crud(
@@ -258,3 +260,139 @@ async def get_info_about_order_crud(
         raise HTTPException(status_code=404, detail="Заказ не найден")
 
     return order_with_customer_and_products
+
+
+# Напиши запрос, который извлекает все заказы, сделанные пользователем,
+# сортируя их по дате создания (например, от самых новых к самым старым).
+# Выведи ID заказов, дату создания и общую стоимость для каждого заказа.
+async def get_all_orders_by_customer_id_crud(
+    customer_id: int,
+    session: AsyncSession = Depends(get_session_to_db),
+):
+    customer = await session.get(CustomerOrm, customer_id)
+    if not customer:
+        raise HTTPException(status_code=404, detail="Пользователь не найден")
+
+    stmt = (
+        select(OrderOrm.id, OrderOrm.created_at, OrderOrm.total_price)
+        .where(OrderOrm.customer_id == customer_id)
+        .order_by(OrderOrm.created_at.desc())
+    )
+
+    result = await session.execute(stmt)
+    orders_by_customer = result.all()
+
+    return [
+        {"id": obj[0], "created_at": obj[1], "total_price": obj[2]}
+        for obj in orders_by_customer
+    ]
+
+
+#     3. Добавление продукта в несколько заказов
+# Создай функцию, которая добавляет один и тот же продукт в несколько заказов.
+# Продукт должен добавляться к заказам, переданным в запросе.
+async def add_product_to_multiple_orders_crud(
+    order_ids: list[int],
+    product: CreateProductSchema,
+    session: AsyncSession = Depends(get_session_to_db),
+):
+    # Проверяем, существуют ли все заказы
+    order_stmt = select(OrderOrm.id).where(OrderOrm.id.in_(order_ids))
+    result = await session.execute(order_stmt)
+    existing_orders = {row for row in result.scalars().all()}  # Преобразуем в множество
+
+    if len(existing_orders) != len(order_ids):
+        raise HTTPException(
+            status_code=404, detail="Один или несколько заказов не найдены"
+        )
+
+    # Создаем новый продукт
+    new_product = ProductOrm(**product.model_dump())
+    session.add(new_product)
+    await session.commit()  # Фиксируем добавление продукта
+    await session.refresh(new_product)  # Получаем его ID
+
+    # Подготавливаем данные для массовой вставки
+    insert_values = [
+        {"order_id": order_id, "product_id": new_product.id} for order_id in order_ids
+    ]
+
+    # Выполняем массовую вставку
+    if insert_values:
+        stmt = order_product.insert().values(insert_values)
+        await session.execute(stmt)
+        await session.commit()
+
+    return {"message": "Продукт успешно добавлен в заказы"}
+
+
+# 4. Получение продуктов, которые были заказаны более одного раза
+# Напиши запрос, который возвращает все продукты, которые были заказаны более одного раза.
+# Для каждого продукта выведи количество заказов, в которых он присутствует.
+async def get_products_ordered_more_than_once_crud(
+    session: AsyncSession = Depends(get_session_to_db),
+):
+    # выбираем product_id из таблицы связи order_product и считаем количество заказов для каждого продукта с помощью func.count().
+    stmt = (
+        select(
+            order_product.c.product_id,
+            func.count(order_product.c.order_id).label("количество заказов"),
+        )
+        .group_by(order_product.c.product_id)
+        .having(func.count(order_product.c.order_id) > 1)
+    )
+
+    result = await session.execute(stmt)
+    products = result.fetchall()
+
+    return [
+        {"product_id": product[0], "количество заказов": product[1]}
+        for product in products
+    ]
+
+
+# 5. Суммирование стоимости заказов для каждого пользователя
+# Напиши запрос, который извлекает список всех пользователей с суммой стоимости их заказов.
+# Для каждого пользователя выведи его имя и общую стоимость всех заказов.
+
+
+async def get_users_with_total_order_price_crud(
+    session: AsyncSession = Depends(get_session_to_db),
+):
+    stmt = (
+        select(
+            CustomerOrm.first_name,
+            func.coalesce(func.sum(OrderOrm.total_price), 0).label("total_order_price"),
+        )
+        .join(OrderOrm, CustomerOrm.id == OrderOrm.customer_id, isouter=True)
+        .group_by(CustomerOrm.id)
+    )
+
+    result = await session.execute(stmt)
+    users_with_total_order_price = result.all()
+
+    return [
+        {"first_name": user[0], "total_order_price": user[1]}
+        for user in users_with_total_order_price
+    ]
+
+
+# 6. Поиск заказов по определенному диапазону дат
+# Напиши запрос, который извлекает все заказы, сделанные в определенный промежуток времени.
+# Запрос должен позволять передавать начальную и конечную даты.
+
+
+async def get_orders_by_date_range_crud(
+    start_date: str,
+    end_date: str,
+    session: AsyncSession = Depends(get_session_to_db),
+):
+    start_date = datetime.strptime(start_date.strip(), "%d-%m-%Y %H:%M:%S")
+    end_date = datetime.strptime(end_date.strip(), "%d-%m-%Y %H:%M:%S")
+
+    stmt = select(OrderOrm).where(
+        OrderOrm.created_at >= start_date, OrderOrm.created_at <= end_date
+    )
+    result = await session.execute(stmt)
+    orders_by_date_range = result.scalars().all()
+    return orders_by_date_range

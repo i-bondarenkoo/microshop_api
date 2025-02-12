@@ -23,13 +23,6 @@ async def get_customers(session: AsyncSession = Depends(get_session_to_db)):
     return await crud.get_all_customers_crud(session=session)
 
 
-@router.get("/{customer_id}")
-async def get_customer_by_id(
-    customer_id: int, session: AsyncSession = Depends(get_session_to_db)
-):
-    return await crud.get_customer_by_id_crud(session=session, customer_id=customer_id)
-
-
 @router.patch("/{customer_id}")
 async def update_partial_info_customer(
     customer: UpdatePartialCustomerSchema,
@@ -50,3 +43,17 @@ async def update_full_info_customer(
     return await crud.update_full_info_customer_crud(
         customer=customer, customer_id=customer_id, session=session
     )
+
+
+@router.get("/orders")
+async def get_user_with_total_order_price(
+    session: AsyncSession = Depends(get_session_to_db),
+):
+    return await crud.get_users_with_total_order_price_crud(session=session)
+
+
+@router.get("/{customer_id}")
+async def get_customer_by_id(
+    customer_id: int, session: AsyncSession = Depends(get_session_to_db)
+):
+    return await crud.get_customer_by_id_crud(session=session, customer_id=customer_id)
