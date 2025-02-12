@@ -34,3 +34,19 @@ async def delete_order(
     order_id: int, session: AsyncSession = Depends(get_session_to_db)
 ):
     return await crud.delete_order_crud(order_id=order_id, session=session)
+
+
+@router.post("/{order_id}/products/{product_id}")
+async def add_product_to_order(
+    product_id: int, order_id: int, session: AsyncSession = Depends(get_session_to_db)
+):
+    return await crud.add_product_to_order_crud(
+        product_id=product_id, order_id=order_id, session=session
+    )
+
+
+@router.get("/{order_id}/details")
+async def get_info_about_order(
+    order_id: int, session: AsyncSession = Depends(get_session_to_db)
+):
+    return await crud.get_info_about_order_crud(order_id=order_id, session=session)

@@ -1,6 +1,6 @@
 from __future__ import annotations
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy import String, Integer, Float, ForeignKey, Date
+from sqlalchemy import String, Integer, Float, ForeignKey
 from database import Base
 from .associations import order_product
 from datetime import datetime

@@ -10,6 +10,7 @@ from schemas.schemas_order import (
     ResponseOrderSchema,
     UpdateOrderSchema,
 )
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 from database import get_session_to_db
 from models.models_customer import CustomerOrm
@@ -21,6 +22,7 @@ from schemas.schemas_product import (
     ResponseProductSchema,
     UpdateProductPartialSchema,
 )
+from models.associations import order_product
 
 
 async def create_customer_crud(
@@ -69,7 +71,7 @@ async def update_partial_info_customer_crud(
         raise HTTPException(status_code=404, detail="Пользователь не найден")
 
     # Обновляем только переданные поля
-    update_data = customer.model_dump(exclude_unset=True, exclude_none=True)
+    update_data = customer.model_dump(exclude_unset=True)
 
     for key, value in update_data.items():
         setattr(get_customer, key, value)
@@ -164,6 +166,9 @@ async def create_order_crud(
     session: AsyncSession = Depends(get_session_to_db),
     responce_model=ResponseOrderSchema,
 ):
+    check_customer_id = await session.get(CustomerOrm, order.customer_id)
+    if not check_customer_id:
+        raise HTTPException(status_code=404, detail="Пользователь не найден")
     new_order = OrderOrm(**order.model_dump())
     session.add(new_order)
     await session.commit()
@@ -212,3 +217,44 @@ async def delete_order_crud(
     await session.commit()
 
     return {"message": "Заказ успешно удален"}
+
+
+async def add_product_to_order_crud(
+    product_id: int, order_id: int, session: AsyncSession = Depends(get_session_to_db)
+):
+    # Находим заказ и продукт по id
+    order = await session.get(OrderOrm, order_id)
+    if not order:
+        raise HTTPException(status_code=404, detail="Заказ не найден")
+    product = await session.get(ProductOrm, product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="Продукт не найден")
+    # Добавляем продукт к заказу
+    stmt = order_product.insert().values(order_id=order_id, product_id=product_id)
+    await session.execute(stmt)
+    await session.commit()
+
+    return {"message": "Продукт успешно добавлен в заказ"}
+
+
+async def get_info_about_order_crud(
+    order_id: int, session: AsyncSession = Depends(get_session_to_db)
+):
+    # Загружаем заказ по ID
+    order = await session.get(OrderOrm, order_id)
+    if not order:
+        raise HTTPException(status_code=404, detail="Заказ не найден")
+
+    stmt = (
+        select(OrderOrm)
+        .where(OrderOrm.id == order_id)
+        .options(selectinload(OrderOrm.customer), selectinload(OrderOrm.products))
+    )
+
+    result = await session.execute(stmt)
+    order_with_customer_and_products = result.scalars().one_or_none()
+
+    if not order_with_customer_and_products:
+        raise HTTPException(status_code=404, detail="Заказ не найден")
+
+    return order_with_customer_and_products
